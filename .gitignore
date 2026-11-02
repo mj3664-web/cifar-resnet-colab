@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/
+cache/
+runs/
+*.zip
+*.npy
+*.pt
+submission.csv
+.test-*/

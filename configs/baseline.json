@@ -1,0 +1,22 @@
+{
+  "model": {"depth": 28, "base_width": 56, "dropout": 0.1},
+  "epochs": 300,
+  "batch_size": 128,
+  "lr": 0.1,
+  "min_lr": 0.0001,
+  "warmup_epochs": 5,
+  "momentum": 0.9,
+  "weight_decay": 0.0005,
+  "label_smoothing": 0.0,
+  "randaugment_magnitude": 5,
+  "mixup_alpha": 0.0,
+  "cutmix_alpha": 0.0,
+  "mix_probability": 0.0,
+  "mix_off_last": 0,
+  "ema_decay": 0.999,
+  "val_fraction": 0.1,
+  "split_seed": 2026,
+  "seed": 42,
+  "inference_weights": "ema",
+  "tta": "flip"
+}
