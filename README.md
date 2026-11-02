@@ -2,13 +2,78 @@
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_Training.ipynb)
 
+## New: wider model and AugMix comparison
+
+[Open the v2 experiments in Colab](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_Experiments_v2.ipynb).
+Use this notebook if you have already completed the original main/baseline runs below.
+It preserves those checkpoints and your original submission.
+
+| Experiment | Widths | Parameters | Training recipe |
+|---|---|---:|---|
+| Original main (existing reference) | 56 / 112 / 224 | 4,480,474 | RandAugment + MixUp/CutMix |
+| `wide_main` | 59 / 118 / 236 | **4,972,345** | Original main recipe; only channel width changes |
+| `wide_augmix` | 59 / 118 / 236 | **4,972,345** | AugMix + three-view consistency; no RandAugment or MixUp/CutMix |
+
+Both new runs use 400 epochs, batch size 128, seed 42, split seed 2026, the same SGD /
+cosine schedule, and EMA. The original 45,000/5,000 split and normalization procedure are
+preserved. The wider model has 27,655 parameters of headroom under the competition cap;
+increasing the base width to 60 would exceed it. Width 59 is not optimized for multiples-of-eight
+GPU kernels, so measure actual performance rather than extrapolating the old runtime.
+
+AugMix uses torchvision's implementation with severity 3, mixture width 3, stochastic chain
+depth 1–3, alpha 1.0, bilinear interpolation, and `all_ops=False`. Each source image gets one
+shared random crop/flip, then a base view and two independently augmented/mixed views.
+The loss is base-view cross-entropy plus **12 times the Jensen–Shannon divergence** between
+the three predictive distributions. All three views pass through the same network; there are
+no extra trainable components. Probability / consistency arithmetic is float32 even under AMP.
+This follows the AugMix consistency-training approach with our stated torchvision and
+training choices; it is not a claim to reproduce the paper's exact experimental setup.
+
+Batch size 128 means **128 source images / 384 views** for AugMix. Expect greater GPU memory,
+augmentation work, and training time; the notebook times both recipes before the long runs.
+Training losses across the two recipes are not directly comparable. AugMix logs `clean_ce`
+and `jsd` separately as well as their weighted total. These new recipes have passed CPU
+correctness tests but have no measured competitive accuracy or A100 runtime yet.
+
+Run the new notebook from the beginning on an A100. It clones the latest code into a
+separate directory and pins that commit for resumption. It accepts `data.zip` either in
+`MyDrive/cifar_resnet_project` or uploaded directly to `/content/data.zip`. Checkpoints go to
+`runs_v2/wide_main` and `runs_v2/wide_augmix`; old `runs/main` is a read-only reference.
+New files will not appear in the old notebook's pinned checkout automatically.
+
+After both runs complete, the selector compares their best clean validation accuracy with
+the original main run. A fixed optional diagnostic also evaluates brightness, contrast, blur,
+and noise on the **held-out training images only**. It never uses test images for model
+selection. This is a custom stress test, not CIFAR-10-C, and not a forecast of Kaggle accuracy.
+The automatic selector remains based on clean accuracy; a close result should be confirmed
+with another seed rather than treated as proof of improvement.
+
+Final full-data fitting is off by default (`RUN_FINAL_FIT=False`). After reviewing results,
+enable it to train the selected new recipe from scratch on all 50,000 images. If the old main
+recipe wins, the notebook reuses its existing final checkpoint. New final fits are saved in
+`runs_v2/final_wide_main` or `runs_v2/final_wide_augmix`; generated CSVs go under
+`submissions_v2/<recipe>/submission.csv`. The original submission is not overwritten.
+
+CLI equivalents (from repository root):
+
+```bash
+python -m src.train --data cache --config configs/wide_main.json --out runs_v2/wide_main --resume
+python -m src.train --data cache --config configs/wide_augmix.json --out runs_v2/wide_augmix --resume
+python -m src.select --runs runs/main runs_v2/wide_main runs_v2/wide_augmix --out runs_v2/selected.json
+python -m src.robustness --data cache --checkpoints runs/main/best.pt runs_v2/wide_main/best.pt runs_v2/wide_augmix/best.pt --out runs_v2/robustness.json
+```
+
+## Original training pipeline
+
 A complete Google Colab training and submission pipeline for the supplied `data.zip`.
 The model is a pre-activation Wide ResNet with **4,480,474 trainable parameters**.
 No pretrained weights, external images, downloaded CIFAR copies, or test labels are used.
 
-**Status:** code and local CPU pipeline checks are complete. The competitive GPU runs
-must be executed in Colab. No validation accuracy or Kaggle score is claimed yet.
-The recipes are strong starting points, not a guarantee of the highest possible score.
+**Status:** the original Colab run reached **97.36% development validation accuracy**,
+independently reproduced from the provided checkpoint. The user reported **89.7% Kaggle
+accuracy** for the final full-data model; all 2,000 submitted predictions were independently
+reproduced. See `RESULTS.md`. The new wider / AugMix experiments are untrained and have no
+measured accuracy yet. No recipe guarantees the highest possible score.
 
 ## Start in Colab Pro
 

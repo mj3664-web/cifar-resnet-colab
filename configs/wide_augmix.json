@@ -1,0 +1,35 @@
+{
+  "model": {
+    "depth": 28,
+    "base_width": 59,
+    "dropout": 0.0
+  },
+  "epochs": 400,
+  "batch_size": 128,
+  "lr": 0.1,
+  "min_lr": 0.0001,
+  "warmup_epochs": 5,
+  "momentum": 0.9,
+  "weight_decay": 0.0005,
+  "label_smoothing": 0.0,
+  "randaugment_magnitude": 0,
+  "mixup_alpha": 0.0,
+  "cutmix_alpha": 0.0,
+  "mix_probability": 0.0,
+  "mix_off_last": 0,
+  "ema_decay": 0.999,
+  "val_fraction": 0.1,
+  "split_seed": 2026,
+  "seed": 42,
+  "inference_weights": "ema",
+  "tta": "flip",
+  "augmentation": "augmix",
+  "jsd_weight": 12.0,
+  "augmix": {
+    "severity": 3,
+    "mixture_width": 3,
+    "chain_depth": -1,
+    "alpha": 1.0,
+    "all_ops": false
+  }
+}

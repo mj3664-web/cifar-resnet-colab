@@ -86,6 +86,25 @@ def probabilities(model, images, tta='none'):
     return probs
 
 
+def augmix_loss(logits, targets, jsd_weight=12.0, label_smoothing=0.0):
+    """Clean-view CE + weight * Jensen-Shannon divergence over all three views.
+
+    logits order: all base images, all AugMix view 1, all AugMix view 2.
+    Explicit float32 arithmetic keeps the consistency loss stable under AMP.
+    The mixture is not detached: consistency gradients reach all three views.
+    """
+    if logits.shape[0] != 3 * len(targets):
+        raise ValueError('AugMix expects three logits per target')
+    clean, first, second = logits.float().chunk(3)
+    ce = F.cross_entropy(clean, targets, label_smoothing=label_smoothing)
+    log_probs = [F.log_softmax(view, dim=1) for view in (clean, first, second)]
+    probs = [log_p.exp() for log_p in log_probs]
+    log_mixture = (sum(probs) / 3).clamp_min(1e-12).log()
+    jsd = sum((p * (log_p - log_mixture)).sum(1).mean()
+              for p, log_p in zip(probs, log_probs)) / 3
+    return ce + jsd_weight * jsd, ce, jsd
+
+
 @torch.inference_mode()
 def evaluate(model, loader, device, tta='none'):
     model.eval()

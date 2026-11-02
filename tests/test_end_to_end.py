@@ -19,6 +19,12 @@ from src.data import prepare
 
 class EndToEndTest(unittest.TestCase):
     def test_train_resume_select_full_fit_and_predict(self):
+        self.run_recipe('main')
+
+    def test_augmix_train_resume_select_full_fit_and_predict(self):
+        self.run_recipe('wide_augmix')
+
+    def run_recipe(self, recipe):
         with tempfile.TemporaryDirectory(dir=Path.cwd(), prefix='.test-') as temp:
             root = Path(temp)
             rng = np.random.default_rng(1)
@@ -42,7 +48,7 @@ class EndToEndTest(unittest.TestCase):
                 z.writestr('sample_submission.csv', 'id,label\n002,0\n000,0\n001,0\n')
             cache = root / 'cache'
             prepare(archive, cache)
-            config = json.loads(Path('configs/main.json').read_text())
+            config = json.loads(Path(f'configs/{recipe}.json').read_text())
             config.update(model={'depth': 10, 'base_width': 4, 'dropout': 0.1}, epochs=2,
                           warmup_epochs=0, batch_size=16, mix_off_last=0)
             config_path = root / 'config.json'
@@ -83,6 +89,13 @@ class EndToEndTest(unittest.TestCase):
             meta = json.loads((root / 'submission.metadata.json').read_text())
             self.assertTrue(meta['full_data'])
             self.assertEqual(meta['rows'], 3)
+            if recipe == 'wide_augmix':
+                history = [json.loads(s) for s in (resumed / 'history.jsonl').read_text().splitlines()]
+                self.assertTrue(all(r['jsd'] >= -1e-6 and r['clean_ce'] > 0 for r in history))
+                run('src.robustness', '--data', cache, '--checkpoints', resumed / 'best.pt',
+                    '--out', root / 'robustness.json', '--workers', 0)
+                result = json.loads((root / 'robustness.json').read_text())
+                self.assertEqual(len(result['results'][0]['accuracy']), 5)
 
 
 if __name__ == '__main__':

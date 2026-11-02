@@ -14,8 +14,8 @@ import torch.nn.functional as F
 import torchvision
 from torch.utils.data import DataLoader
 
-from .data import ImageDataset, normalization, seed_worker, stratified_split, transform
-from .engine import EMA, evaluate, learning_rate, mix_batch, save_atomic, seed_all
+from .data import ImageDataset, normalization, seed_worker, stratified_split, transform, training_transform
+from .engine import EMA, augmix_loss, evaluate, learning_rate, mix_batch, save_atomic, seed_all
 from .model import build_model
 
 
@@ -71,8 +71,8 @@ def main():
     use_amp = device.type == 'cuda'
     amp_dtype = torch.bfloat16 if use_amp and torch.cuda.is_bf16_supported() else torch.float16
     scaler = torch.amp.GradScaler('cuda', enabled=use_amp and amp_dtype == torch.float16)
-    training = ImageDataset(images, train_indices, labels,
-                            transform(mean, std, True, config['randaugment_magnitude']))
+    use_augmix = config.get('augmentation', 'randaugment') == 'augmix'
+    training = ImageDataset(images, train_indices, labels, training_transform(mean, std, config))
     validation = ImageDataset(images, val_indices, labels, transform(mean, std))
     generator = torch.Generator()
     loader = DataLoader(training, batch_size=config['batch_size'], shuffle=True,
@@ -138,19 +138,26 @@ def main():
         begin = time.time()
         generator.manual_seed(config['seed'] + epoch)
         model.train()
-        running_loss, seen = 0.0, 0
+        running_loss, running_ce, running_jsd, seen = 0.0, 0.0, 0.0, 0
         for step, (x, y) in enumerate(loader):
             lr = learning_rate(config, epoch + (step + 1) / len(loader))
             for group in optimizer.param_groups:
                 group['lr'] = lr
-            x = x.to(device, non_blocking=True).contiguous(memory_format=torch.channels_last)
             y = y.to(device, non_blocking=True)
-            x, ya, yb, lam = mix_batch(x, y, config, epoch < config['epochs'] - config['mix_off_last'])
+            if use_augmix:
+                x = torch.cat(x, dim=0).to(device, non_blocking=True).contiguous(memory_format=torch.channels_last)
+            else:
+                x = x.to(device, non_blocking=True).contiguous(memory_format=torch.channels_last)
+                x, ya, yb, lam = mix_batch(x, y, config, epoch < config['epochs'] - config['mix_off_last'])
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=use_amp):
                 logits = model(x)
-                loss = lam * F.cross_entropy(logits, ya, label_smoothing=config['label_smoothing'])
-                loss += (1 - lam) * F.cross_entropy(logits, yb, label_smoothing=config['label_smoothing'])
+                if use_augmix:
+                    loss, clean_ce, jsd = augmix_loss(logits, y, config.get('jsd_weight', 12.0),
+                                                    config['label_smoothing'])
+                else:
+                    loss = lam * F.cross_entropy(logits, ya, label_smoothing=config['label_smoothing'])
+                    loss += (1 - lam) * F.cross_entropy(logits, yb, label_smoothing=config['label_smoothing'])
             if not torch.isfinite(loss):
                 raise FloatingPointError('Nonfinite training loss; last completed epoch is recoverable')
             scaler.scale(loss).backward()
@@ -160,8 +167,13 @@ def main():
             if scaler.get_scale() >= old_scale:
                 ema.update(model)
             running_loss += loss.item() * len(y)
+            if use_augmix:
+                running_ce += clean_ce.item() * len(y)
+                running_jsd += jsd.item() * len(y)
             seen += len(y)
         record = {'epoch': epoch + 1, 'train_loss': running_loss / seen, 'lr': lr}
+        if use_augmix:
+            record.update(clean_ce=running_ce / seen, jsd=running_jsd / seen)
         if val_loader is not None:
             for name, network in [('raw', model), ('ema', ema.model)]:
                 metrics = evaluate(network, val_loader, device, config['tta'])

@@ -24,3 +24,15 @@ copy of an external implementation. The design uses the following published meth
 Additional standard techniques: exponential moving averages of weights, random crop/flip,
 per-channel training-set normalization, Nesterov SGD, and horizontal-flip prediction averaging.
 No reference repository's weights, dataset downloads, or external training examples are used.
+
+## Wider / AugMix experiments
+
+- Hendrycks, D., Mu, N., Cubuk, E. D., Zoph, B., Gilmer, J., and Lakshminarayanan, B.
+  (2020). **AugMix: A Simple Data Processing Method to Improve Robustness and Uncertainty.**
+  https://arxiv.org/abs/1912.02781 — augmentation mixtures and three-view consistency training.
+- Torchvision AugMix implementation and API:
+  https://docs.pytorch.org/vision/stable/generated/torchvision.transforms.AugMix.html
+
+The custom validation stress test is implemented locally using PIL/NumPy transformations
+of held-out allowed training images. It does not download or use CIFAR-10-C or any other
+external evaluation dataset, and is not claimed as a standardized corruption benchmark.

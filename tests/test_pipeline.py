@@ -6,11 +6,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from PIL import Image
 
-from src.data import stratified_split
-from src.engine import EMA, learning_rate, mix_batch
+from src.data import stratified_split, training_transform
+from src.engine import EMA, augmix_loss, learning_rate, mix_batch
 from src.model import build_model
 from src.predict import write_submission
+from src.robustness import ShiftDataset
 
 
 class PipelineTests(unittest.TestCase):
@@ -81,6 +83,45 @@ class PipelineTests(unittest.TestCase):
         c = self.config
         self.assertAlmostEqual(learning_rate(c, c['warmup_epochs']), c['lr'])
         self.assertAlmostEqual(learning_rate(c, c['epochs']), c['min_lr'])
+
+    def test_wider_configs_fit_limit(self):
+        for name in ('wide_main', 'wide_augmix'):
+            config = json.loads(Path(f'configs/{name}.json').read_text())
+            model = build_model(config)
+            self.assertEqual(sum(p.numel() for p in model.parameters()), 4_972_345)
+        with self.assertRaises(ValueError):
+            build_model({'model': {'depth': 28, 'base_width': 60}})
+
+    def test_augmix_views_and_gradients(self):
+        config = json.loads(Path('configs/wide_augmix.json').read_text())
+        augment = training_transform([0.5]*3, [0.25]*3, config)
+        image = Image.fromarray(np.random.default_rng(3).integers(0, 256, (32, 32, 3), dtype=np.uint8))
+        views = augment(image)
+        self.assertEqual(len(views), 3)
+        self.assertTrue(all(v.shape == (3, 32, 32) and torch.isfinite(v).all() for v in views))
+        with self.assertRaises(ValueError):
+            training_transform([0.5]*3, [0.25]*3, {**config, 'mix_probability': 0.5})
+        logits = torch.randn(12, 10, requires_grad=True)
+        loss, ce, jsd = augmix_loss(logits, torch.tensor([1, 2, 3, 4]))
+        self.assertGreater(jsd.item(), 0)
+        torch.testing.assert_close(loss, ce + 12 * jsd)
+        loss.backward()
+        self.assertTrue(torch.isfinite(logits.grad).all())
+        self.assertTrue(all(v.abs().sum() > 0 for v in logits.grad.chunk(3)))
+        same = torch.randn(4, 10).repeat(3, 1)
+        _, _, jsd = augmix_loss(same, torch.tensor([1, 2, 3, 4]))
+        self.assertAlmostEqual(jsd.item(), 0, places=6)
+
+    def test_robustness_noise_is_repeatable(self):
+        images = np.full((3, 32, 32, 3), 128, dtype=np.uint8)
+        labels = np.array([0, 1, 2])
+        from src.data import transform
+        ds = ShiftDataset(images, labels, np.arange(3), transform([0.5]*3, [0.25]*3), 'noise_0.05')
+        a, y = ds[1]
+        b, _ = ds[1]
+        torch.testing.assert_close(a, b, rtol=0, atol=0)
+        self.assertEqual(y, 1)
+        self.assertFalse(torch.equal(a, ds[0][0]))
 
 
 if __name__ == '__main__':
