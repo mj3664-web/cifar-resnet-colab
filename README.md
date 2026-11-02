@@ -4,6 +4,11 @@
 
 ## New: wider model and AugMix comparison
 
+To run **only full-data AugMix on NYU Torch**, use the [HPC launcher instructions](hpc/README.md).
+It requests one GPU, saves resumable checkpoints, and generates a separate submission after
+400 epochs. The job requires your authenticated HPC session, Slurm account, and CUDA Python
+environment; downloading the repository does not submit a job.
+
 [Open the v2 experiments in Colab](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_Experiments_v2.ipynb).
 Use this notebook if you have already completed the original main/baseline runs below.
 It preserves those checkpoints and your original submission.
