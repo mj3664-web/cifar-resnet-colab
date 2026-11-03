@@ -85,6 +85,8 @@ def main():
               'archive_sha256': manifest['archive_sha256'], 'parameter_count': count,
               'rows': rows, 'tta': config['tta'], 'weights': checkpoint['weights'],
               'full_data': checkpoint['full_data'], 'epoch': checkpoint['epoch']}
+    if checkpoint.get('bn_adaptation'):
+        report['bn_adaptation'] = checkpoint['bn_adaptation']
     Path(args.out).with_suffix('.metadata.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
 

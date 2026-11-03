@@ -36,3 +36,10 @@ No reference repository's weights, dataset downloads, or external training examp
 The custom validation stress test is implemented locally using PIL/NumPy transformations
 of held-out allowed training images. It does not download or use CIFAR-10-C or any other
 external evaluation dataset, and is not claimed as a standardized corruption benchmark.
+
+## Optional test-time BN recalibration
+
+PyTorch BatchNorm2d documentation (running statistics, evaluation mode, cumulative-average
+momentum): https://docs.pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html
+The implementation is one-pass BN buffer recalibration, not gradient-based test-time
+optimization. Test use is explicitly gated on organizer permission.

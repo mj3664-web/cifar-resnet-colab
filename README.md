@@ -4,6 +4,17 @@
 
 ## New: wider model and AugMix comparison
 
+**Optional BN adaptation:** [Open the inference-only notebook](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_BN_Adaptation.ipynb).
+This separate opt-in workflow was added after the user confirmed organizer permission to
+adapt BN statistics on unlabeled test images. Upload the original `final.pt` and `data.zip`
+to Colab. It resets/recomputes BN running statistics using a fixed shuffled pass of 100
+test originals plus their flips per batch, then freezes the adapted buffers for prediction.
+It performs no gradient updates, uses no test labels, and checks that every learned parameter
+is unchanged. Outputs include a separate adapted checkpoint, `submission.csv`, and metadata.
+This is a transductive experiment and may reduce accuracy. It is not part of either default
+training pipeline; do not use it without competition permission. The original default
+pipelines described below continue to use fixed training-time BN statistics.
+
 To run **only full-data AugMix on NYU Torch**, use the [HPC launcher instructions](hpc/README.md).
 It requests one GPU, saves resumable checkpoints, and generates a separate submission after
 400 epochs. The job requires your authenticated HPC session, Slurm account, and CUDA Python
