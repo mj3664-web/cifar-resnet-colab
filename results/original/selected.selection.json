@@ -1,0 +1,18 @@
+{
+  "selected_run": "/content/drive/MyDrive/cifar_resnet_project/runs/main",
+  "validation_accuracy": 0.9736,
+  "best_epoch": 365,
+  "final_fit_epochs": 400,
+  "weights": "ema",
+  "tta": "flip",
+  "candidates": [
+    {
+      "run": "/content/drive/MyDrive/cifar_resnet_project/runs/main",
+      "accuracy": 0.9736
+    },
+    {
+      "run": "/content/drive/MyDrive/cifar_resnet_project/runs/baseline",
+      "accuracy": 0.9698
+    }
+  ]
+}

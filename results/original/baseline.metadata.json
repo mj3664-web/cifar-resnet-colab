@@ -1,0 +1,44 @@
+{
+  "config": {
+    "model": {
+      "depth": 28,
+      "base_width": 56,
+      "dropout": 0.1
+    },
+    "epochs": 300,
+    "batch_size": 128,
+    "lr": 0.1,
+    "min_lr": 0.0001,
+    "warmup_epochs": 5,
+    "momentum": 0.9,
+    "weight_decay": 0.0005,
+    "label_smoothing": 0.0,
+    "randaugment_magnitude": 5,
+    "mixup_alpha": 0.0,
+    "cutmix_alpha": 0.0,
+    "mix_probability": 0.0,
+    "mix_off_last": 0,
+    "ema_decay": 0.999,
+    "val_fraction": 0.1,
+    "split_seed": 2026,
+    "seed": 42,
+    "inference_weights": "ema",
+    "tta": "flip"
+  },
+  "parameter_count": 4480474,
+  "mean": [
+    0.4915135944308646,
+    0.4823147097120443,
+    0.4468138379970748
+  ],
+  "std": [
+    0.24705092701489767,
+    0.2434797189335936,
+    0.26150950634246634
+  ],
+  "full_data": false,
+  "archive_sha256": "397e06e5752bfe0576d1258765bbe1d020cca02db2fc21442cbab6d50257ca51",
+  "train_count": 45000,
+  "val_count": 5000,
+  "deterministic": false
+}

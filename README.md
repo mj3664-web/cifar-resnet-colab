@@ -11,6 +11,8 @@ checkpoint scored **0.897 on Kaggle (user-reported)**. See [RESULTS.md](RESULTS.
 the artifact audit and reproducibility limits. This repository contains the original
 Colab workflow and its main/comparison recipes; later experimental workflows have
 been removed. Re-training does not guarantee the same score.
+The [original configs, run metadata, selection report, and training curves](RESULTS.md#original-run-artifacts)
+are included for reference.
 
 ## Start in Colab Pro
 
