@@ -14,6 +14,14 @@ been removed. Re-training does not guarantee the same score.
 The [original configs, run metadata, selection report, and training curves](RESULTS.md#original-run-artifacts)
 are included for reference.
 
+## Original training curves
+
+![Original main and baseline training loss and validation accuracy](results/original/training-curves.png)
+
+Development runs: main (400 epochs) and baseline (300 epochs). Main EMA reached
+97.36% best validation accuracy; baseline reached 96.98%. See [RESULTS.md](RESULTS.md)
+for the selection report and full-data training details.
+
 ## Start in Colab Pro
 
 1. Create `MyDrive/cifar_resnet_project` in Google Drive.
