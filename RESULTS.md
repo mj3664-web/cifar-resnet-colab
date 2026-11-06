@@ -23,14 +23,3 @@ and all 2,000 final submission predictions were independently reproduced on CPU.
 Attach the selected JSON config, selection report, final metadata, environment record,
 and checkpoint link. Run `src.predict` with the preserved checkpoint and original archive
 to reproduce the submitted predictions. Re-training can have numerical variation across devices.
-
-## Wider / AugMix experiments
-
-| Experiment | Parameters | Development accuracy | Kaggle accuracy |
-|---|---:|---|---|
-| wide_main | 4,972,345 | Pending Colab training | Not submitted |
-| wide_augmix | 4,972,345 | Pending Colab training | Not submitted |
-
-These recipes have software-test results only. The original validation-to-Kaggle gap is
-not explained by a CSV mismatch or corrupt checkpoint; distribution differences remain
-a hypothesis, not an established identification of the hidden evaluation dataset.

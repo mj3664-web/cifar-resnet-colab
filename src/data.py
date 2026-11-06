@@ -115,37 +115,6 @@ def transform(mean, std, training=False, magnitude=7):
     return T.Compose(ops + [T.ToTensor(), T.Normalize(mean, std)])
 
 
-class AugMixViews:
-    """One crop/flip shared by a base view and two independent AugMix views."""
-    def __init__(self, mean, std, severity=3, mixture_width=3, chain_depth=-1,
-                 alpha=1.0, all_ops=False):
-        self.base = T.Compose([T.RandomCrop(32, padding=4, padding_mode='reflect'),
-                               T.RandomHorizontalFlip()])
-        self.augment = T.AugMix(severity=severity, mixture_width=mixture_width,
-                                chain_depth=chain_depth, alpha=alpha, all_ops=all_ops,
-                                interpolation=InterpolationMode.BILINEAR,
-                                fill=tuple(round(v * 255) for v in mean))
-        self.normalize = transform(mean, std)
-
-    def __call__(self, image):
-        base = self.base(image)
-        return (self.normalize(base), self.normalize(self.augment(base.copy())),
-                self.normalize(self.augment(base.copy())))
-
-
-def training_transform(mean, std, config):
-    method = config.get('augmentation', 'randaugment')
-    if method == 'randaugment':
-        return transform(mean, std, True, config['randaugment_magnitude'])
-    if method == 'augmix':
-        if config['mix_probability'] != 0 or config['mixup_alpha'] != 0 or config['cutmix_alpha'] != 0:
-            raise ValueError('AugMix consistency training requires MixUp/CutMix disabled')
-        if config.get('jsd_weight', 12.0) < 0:
-            raise ValueError('jsd_weight must be nonnegative')
-        return AugMixViews(mean, std, **config.get('augmix', {}))
-    raise ValueError(f'Unknown augmentation: {method}')
-
-
 class ImageDataset(Dataset):
     def __init__(self, images, indices, labels, transform):
         self.images, self.indices, self.labels, self.transform = images, indices, labels, transform

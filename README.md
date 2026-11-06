@@ -2,101 +2,22 @@
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_Training.ipynb)
 
-## New: wider model and AugMix comparison
-
-**Optional BN adaptation:** [Open the inference-only notebook](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_BN_Adaptation.ipynb).
-This separate opt-in workflow was added after the user confirmed organizer permission to
-adapt BN statistics on unlabeled test images. Upload the original `final.pt` and `data.zip`
-to Colab. It resets/recomputes BN running statistics using a fixed shuffled pass of 100
-test originals plus their flips per batch, then freezes the adapted buffers for prediction.
-It performs no gradient updates, uses no test labels, and checks that every learned parameter
-is unchanged. Outputs include a separate adapted checkpoint, `submission.csv`, and metadata.
-This is a transductive experiment and may reduce accuracy. It is not part of either default
-training pipeline; do not use it without competition permission. The original default
-pipelines described below continue to use fixed training-time BN statistics.
-
-To run **only full-data AugMix on NYU Torch**, use the [HPC launcher instructions](hpc/README.md).
-It requests one GPU, saves resumable checkpoints, and generates a separate submission after
-400 epochs. The job requires your authenticated HPC session, Slurm account, and CUDA Python
-environment; downloading the repository does not submit a job.
-
-[Open the v2 experiments in Colab](https://colab.research.google.com/github/mj3664-web/cifar-resnet-colab/blob/main/Colab_Experiments_v2.ipynb).
-Use this notebook if you have already completed the original main/baseline runs below.
-It preserves those checkpoints and your original submission.
-
-| Experiment | Widths | Parameters | Training recipe |
-|---|---|---:|---|
-| Original main (existing reference) | 56 / 112 / 224 | 4,480,474 | RandAugment + MixUp/CutMix |
-| `wide_main` | 59 / 118 / 236 | **4,972,345** | Original main recipe; only channel width changes |
-| `wide_augmix` | 59 / 118 / 236 | **4,972,345** | AugMix + three-view consistency; no RandAugment or MixUp/CutMix |
-
-Both new runs use 400 epochs, batch size 128, seed 42, split seed 2026, the same SGD /
-cosine schedule, and EMA. The original 45,000/5,000 split and normalization procedure are
-preserved. The wider model has 27,655 parameters of headroom under the competition cap;
-increasing the base width to 60 would exceed it. Width 59 is not optimized for multiples-of-eight
-GPU kernels, so measure actual performance rather than extrapolating the old runtime.
-
-AugMix uses torchvision's implementation with severity 3, mixture width 3, stochastic chain
-depth 1–3, alpha 1.0, bilinear interpolation, and `all_ops=False`. Each source image gets one
-shared random crop/flip, then a base view and two independently augmented/mixed views.
-The loss is base-view cross-entropy plus **12 times the Jensen–Shannon divergence** between
-the three predictive distributions. All three views pass through the same network; there are
-no extra trainable components. Probability / consistency arithmetic is float32 even under AMP.
-This follows the AugMix consistency-training approach with our stated torchvision and
-training choices; it is not a claim to reproduce the paper's exact experimental setup.
-
-Batch size 128 means **128 source images / 384 views** for AugMix. Expect greater GPU memory,
-augmentation work, and training time; the notebook times both recipes before the long runs.
-Training losses across the two recipes are not directly comparable. AugMix logs `clean_ce`
-and `jsd` separately as well as their weighted total. These new recipes have passed CPU
-correctness tests but have no measured competitive accuracy or A100 runtime yet.
-
-Run the new notebook from the beginning on an A100. It clones the latest code into a
-separate directory and pins that commit for resumption. It accepts `data.zip` either in
-`MyDrive/cifar_resnet_project` or uploaded directly to `/content/data.zip`. Checkpoints go to
-`runs_v2/wide_main` and `runs_v2/wide_augmix`; old `runs/main` is a read-only reference.
-New files will not appear in the old notebook's pinned checkout automatically.
-
-After both runs complete, the selector compares their best clean validation accuracy with
-the original main run. A fixed optional diagnostic also evaluates brightness, contrast, blur,
-and noise on the **held-out training images only**. It never uses test images for model
-selection. This is a custom stress test, not CIFAR-10-C, and not a forecast of Kaggle accuracy.
-The automatic selector remains based on clean accuracy; a close result should be confirmed
-with another seed rather than treated as proof of improvement.
-
-Final full-data fitting is off by default (`RUN_FINAL_FIT=False`). After reviewing results,
-enable it to train the selected new recipe from scratch on all 50,000 images. If the old main
-recipe wins, the notebook reuses its existing final checkpoint. New final fits are saved in
-`runs_v2/final_wide_main` or `runs_v2/final_wide_augmix`; generated CSVs go under
-`submissions_v2/<recipe>/submission.csv`. The original submission is not overwritten.
-
-CLI equivalents (from repository root):
-
-```bash
-python -m src.train --data cache --config configs/wide_main.json --out runs_v2/wide_main --resume
-python -m src.train --data cache --config configs/wide_augmix.json --out runs_v2/wide_augmix --resume
-python -m src.select --runs runs/main runs_v2/wide_main runs_v2/wide_augmix --out runs_v2/selected.json
-python -m src.robustness --data cache --checkpoints runs/main/best.pt runs_v2/wide_main/best.pt runs_v2/wide_augmix/best.pt --out runs_v2/robustness.json
-```
-
-## Original training pipeline
-
 A complete Google Colab training and submission pipeline for the supplied `data.zip`.
 The model is a pre-activation Wide ResNet with **4,480,474 trainable parameters**.
 No pretrained weights, external images, downloaded CIFAR copies, or test labels are used.
 
-**Status:** the original Colab run reached **97.36% development validation accuracy**,
-independently reproduced from the provided checkpoint. The user reported **89.7% Kaggle
-accuracy** for the final full-data model; all 2,000 submitted predictions were independently
-reproduced. See `RESULTS.md`. The new wider / AugMix experiments are untrained and have no
-measured accuracy yet. No recipe guarantees the highest possible score.
+**Original-run results:** main validation accuracy was **97.36%**; the final full-data
+checkpoint scored **0.897 on Kaggle (user-reported)**. See [RESULTS.md](RESULTS.md) for
+the artifact audit and reproducibility limits. This repository contains the original
+Colab workflow and its main/comparison recipes; later experimental workflows have
+been removed. Re-training does not guarantee the same score.
 
 ## Start in Colab Pro
 
 1. Create `MyDrive/cifar_resnet_project` in Google Drive.
 2. Upload the supplied `data.zip` there. The notebook clones this public GitHub repository automatically when no code ZIP is present. Alternatively, upload the original provided `cifar-resnet-colab.zip` too.
    Keep both ZIP files intact. Do not upload the 52,000 images individually.
-3. Open `Colab_Training.ipynb` using Colab's **File → Upload notebook**.
+3. Click the **Open in Colab** badge above.
 4. Select a GPU runtime, preferably A100 or L4 if offered. Available hardware varies.
 5. Run the notebook in order. It mounts Drive, unpacks the code to the local runtime,
    prepares the supplied dataset, tests the code, and trains.
@@ -104,7 +25,6 @@ measured accuracy yet. No recipe guarantees the highest possible score.
    300-epoch lighter-augmentation recipe. The winning recipe is then trained from
    scratch on all 50,000 permitted images for its full epoch budget.
 7. Download `submission.csv` and submit it manually through the official competition page.
-   Upload this repository's code to your team's GitHub repository.
 
 The notebook also saves `submission.metadata.json`, configuration, split indices,
 validation metrics, checkpoints, and environment details to Drive. It never submits to Kaggle.
@@ -142,6 +62,8 @@ Both included configurations have exactly 4,480,474 parameters; dropout adds non
 |---|---:|---:|
 | Epochs | 400 | 300 |
 | Batch size | 128 | 128 |
+| Training seed / split seed | 42 / 2026 | same |
+| Colab data-loader workers | 4 | 4 |
 | Optimizer | Nesterov SGD, momentum 0.9 | same |
 | Initial / final LR | 0.1 / 0.0001 | same |
 | Warmup | 5 epochs | 5 epochs |
@@ -237,6 +159,8 @@ Resume later without `--stop-after`. It is an absolute completed-epoch limit, no
 Do not edit configs midway; the resume checks reject changed configs, dataset hashes, and data modes.
 Re-running the notebook after a disconnect rebuilds local caches and resumes Drive checkpoints.
 Leave the project name, recipe, and deterministic setting unchanged.
+The notebook saves its code commit in `runs/code_commit.txt` and reuses that commit
+when resuming. Existing Drive runs therefore keep their recorded code version.
 
 `--deterministic` enables deterministic PyTorch algorithms and disables cuDNN benchmarking.
 Use it from the beginning if strict replay on the same hardware/software matters; set
@@ -264,7 +188,7 @@ REFERENCES.md         method and library citations
 RESULTS.md            record actual results after training
 ```
 
-Create your team's GitHub repository and upload these source files. Do not commit the data,
+This repository contains the source files for the original workflow. Do not commit the data,
 cache, or private competition materials. Large checkpoint files should be stored separately
 (for example in a GitHub release or permitted Drive location), with a link and SHA-256 in
 `RESULTS.md`. Before handing in, fill in `RESULTS.md` using the generated run metadata and
